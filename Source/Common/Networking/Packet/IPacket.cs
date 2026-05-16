@@ -124,7 +124,7 @@ public static class BinderExtensions
 
 public abstract class PacketBuffer(bool isWriting)
 {
-    public const int DefaultMaxLength = 32767;
+    public const int DefaultMaxLength = 65536;
     public bool isWriting = isWriting;
 
     public virtual ByteReader Reader => throw new Exception();
