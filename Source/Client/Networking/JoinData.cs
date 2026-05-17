@@ -158,13 +158,13 @@ namespace Multiplayer.Client
 
         public ModListDiff CompareMods(List<ModMetaData> localMods)
         {
-            var mods1 = remoteMods.Select(m => (m.packageId, m.source));
-            var mods2 = localMods.Select(m => (m.PackageIdNonUnique, m.Source));
+            var mods1 = RemoteModIds;
+            var mods2 = localMods.Select(m => m.PackageIdNonUnique);
 
             if (!mods1.EqualAsSets(mods2))
                 return ModListDiff.NoMatchAsSets;
 
-            if (!RemoteModIds.SequenceEqual(localMods.Select(m => m.PackageIdNonUnique)))
+            if (!mods1.SequenceEqual(mods2))
                 return ModListDiff.WrongOrder;
 
             return ModListDiff.None;

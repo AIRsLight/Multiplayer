@@ -17,6 +17,9 @@ public enum LoadingState
 [PacketHandlerClass(inheritHandlers: true)]
 public class ClientLoadingState(ConnectionBase connection) : ClientBaseState(connection)
 {
+    private const int WorldRequestRetryDelayMs = 5000;
+    private const int MaxWorldRequestRetries = 3;
+
     public LoadingState subState = LoadingState.Waiting;
     public uint WorldExpectedSize { get; private set; }
     public uint WorldReceivedSize { get; private set; }
@@ -41,13 +44,40 @@ public class ClientLoadingState(ConnectionBase connection) : ClientBaseState(con
 
     private List<(long, uint)> downloadCheckpoints = new(capacity: 64);
     private Stopwatch downloadTimeStopwatch = new();
+    private int worldRequestRetries;
+
+    public override void StartState()
+    {
+        RetryWorldRequestIfStillWaiting();
+    }
 
     [PacketHandler(Packets.Server_WorldDataStart)]
     public void HandleWorldDataStart(ByteReader data)
     {
+        Log.Message("Multiplayer: World data download started");
         subState = LoadingState.Downloading;
         connection.Lenient = false; // Lenient is set while rejoining
         downloadTimeStopwatch.Start();
+    }
+
+    private void RetryWorldRequestIfStillWaiting()
+    {
+        OnMainThread.Schedule(() =>
+        {
+            if (connection.State != ConnectionStateEnum.ClientLoading || subState != LoadingState.Waiting)
+                return;
+
+            if (worldRequestRetries >= MaxWorldRequestRetries)
+            {
+                Log.Warning($"Multiplayer: still waiting for world data after {MaxWorldRequestRetries} Client_WorldRequest retries");
+                return;
+            }
+
+            worldRequestRetries++;
+            Log.Warning($"Multiplayer: still waiting for world data, retrying Client_WorldRequest ({worldRequestRetries}/{MaxWorldRequestRetries})");
+            connection.Send(Packets.Client_WorldRequest);
+            RetryWorldRequestIfStillWaiting();
+        }, WorldRequestRetryDelayMs / 1000f);
     }
 
     [FragmentedPacketHandler(Packets.Server_WorldData)]

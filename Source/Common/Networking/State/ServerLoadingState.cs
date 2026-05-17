@@ -27,6 +27,12 @@ public class ServerLoadingState : AsyncConnectionState
             Player.keepAliveId++;
     }
 
+    [PacketHandler(Packets.Client_WorldRequest)]
+    public void HandleDuplicateWorldRequest(ByteReader data)
+    {
+        ServerLog.Detail($"{connection} sent duplicate {Packets.Client_WorldRequest} while loading; ignoring");
+    }
+
     protected override async Task RunState()
     {
         await Server.worldData.WaitJoinPoint();
