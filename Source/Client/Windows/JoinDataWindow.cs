@@ -251,6 +251,8 @@ namespace Multiplayer.Client
             {
                 Log.Message($"Multiplayer: Connecting anyway ({DiffString()})");
                 connectAnywayCallback();
+                if (Multiplayer.Client != null)
+                    Log.Message($"Multiplayer: State after connecting anyway: {Multiplayer.Client.State}");
                 Close(false);
             }
 

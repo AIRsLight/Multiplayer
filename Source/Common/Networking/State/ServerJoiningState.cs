@@ -8,6 +8,8 @@ namespace Multiplayer.Common;
 
 public class ServerJoiningState : AsyncConnectionState
 {
+    private static readonly TimeSpan WorldRequestTimeout = TimeSpan.FromSeconds(60);
+
     public ServerJoiningState(ConnectionBase connection) : base(connection)
     {
     }
@@ -26,6 +28,9 @@ public class ServerJoiningState : AsyncConnectionState
         if (!HandleClientJoinData(await TypedPacket<ClientJoinDataPacket>()))
             return;
 
+        if (!await WaitForWorldRequest())
+            return;
+
         if (Server.settings.pauseOnJoin)
             Server.commands.PauseAll();
 
@@ -38,9 +43,20 @@ public class ServerJoiningState : AsyncConnectionState
         Server.playerManager.OnJoin(Player);
         Server.playerManager.SendInitDataCommand(Player);
 
-        await Packet(Packets.Client_WorldRequest);
-
         connection.ChangeState(ConnectionStateEnum.ServerLoading);
+    }
+
+    private async Task<bool> WaitForWorldRequest()
+    {
+        var worldRequest = PacketOrNull(Packets.Client_WorldRequest);
+        var worldRequestTask = worldRequest.AsTask();
+        var completed = await Task.WhenAny(worldRequestTask, Task.Delay(WorldRequestTimeout));
+        if (completed == worldRequestTask)
+            return worldRequest.GetResult() != null;
+
+        ServerLog.Log($"{connection} timed out waiting for {Packets.Client_WorldRequest}");
+        Player.Disconnect(MpDisconnectReason.ClientLeft);
+        return false;
     }
 
     private void HandleProtocol(ClientProtocolPacket packet)

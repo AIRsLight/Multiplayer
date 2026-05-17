@@ -102,6 +102,20 @@ namespace Multiplayer.Client
 
             void Complete()
             {
+                void StartDownloading()
+                {
+                    if (bootstrapState is { Enabled: true } state)
+                    {
+                        connection.ChangeState(ConnectionStateEnum.ClientBootstrap);
+                        Find.WindowStack.Add(new BootstrapConfiguratorWindow(connection, state));
+                        return;
+                    }
+
+                    Log.Message("Multiplayer: Requesting world data");
+                    connection.Send(Packets.Client_WorldRequest);
+                    connection.ChangeState(ConnectionStateEnum.ClientLoading);
+                }
+
                 if (JoinData.CompareToLocal(remoteInfo) && !defDiff)
                 {
                     StartDownloading();
@@ -122,19 +136,6 @@ namespace Multiplayer.Client
                     connectAnywayDisabled = defDiff ? "MpMismatchDefsDiff".Translate() + defDiffStr : null,
                     connectAnywayCallback = StartDownloading
                 });
-
-                void StartDownloading()
-                {
-                    if (bootstrapState is { Enabled: true } state)
-                    {
-                        connection.ChangeState(ConnectionStateEnum.ClientBootstrap);
-                        Find.WindowStack.Add(new BootstrapConfiguratorWindow(connection, state));
-                        return;
-                    }
-
-                    connection.Send(Packets.Client_WorldRequest);
-                    connection.ChangeState(ConnectionStateEnum.ClientLoading);
-                }
             }
         }
     }

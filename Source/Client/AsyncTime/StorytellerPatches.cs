@@ -131,6 +131,9 @@ static class SettlementIncidentTargetTagsPatch
     {
         foreach (var tag in tags)
         {
+            if (ShouldSuppressMultifactionPlayerHomeTag(__instance, tag))
+                continue;
+
             // Only return Map_Misc if player's faction is (heuristically) visiting the map
             // This affects multifaction where the storyteller ticks on every settlement for every faction separately
             if (tag != IncidentTargetTagDefOf.Map_Misc ||
@@ -138,6 +141,13 @@ static class SettlementIncidentTargetTagsPatch
                 yield return tag;
         }
     }
+
+    private static bool ShouldSuppressMultifactionPlayerHomeTag(Settlement settlement, IncidentTargetTagDef tag) =>
+        Multiplayer.Client != null &&
+        Multiplayer.GameComp.multifaction &&
+        tag == IncidentTargetTagDefOf.Map_PlayerHome &&
+        settlement.Faction is { IsPlayer: true } &&
+        settlement.Faction != Faction.OfPlayer;
 }
 
 [HarmonyPatch(typeof(StorytellerUtility), nameof(StorytellerUtility.DefaultThreatPointsNow))]

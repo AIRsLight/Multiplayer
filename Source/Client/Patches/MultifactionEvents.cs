@@ -1,34 +1,9 @@
 using System.Linq;
 using HarmonyLib;
 using RimWorld;
-using RimWorld.Planet;
 using Verse;
 
 namespace Multiplayer.Client;
-
-[HarmonyPatch(typeof(Settlement), nameof(Settlement.IncidentTargetTags))]
-static class MultifactionSettlementIncidentTargetTagsPatch
-{
-    static System.Collections.Generic.IEnumerable<IncidentTargetTagDef> Postfix(
-        System.Collections.Generic.IEnumerable<IncidentTargetTagDef> tags,
-        Settlement __instance)
-    {
-        foreach (var tag in tags)
-        {
-            if (ShouldSuppressPlayerHomeTag(__instance, tag))
-                continue;
-
-            yield return tag;
-        }
-    }
-
-    private static bool ShouldSuppressPlayerHomeTag(Settlement settlement, IncidentTargetTagDef tag) =>
-        Multiplayer.Client != null &&
-        Multiplayer.GameComp.multifaction &&
-        tag == IncidentTargetTagDefOf.Map_PlayerHome &&
-        settlement.Faction is { IsPlayer: true } &&
-        settlement.Faction != Faction.OfPlayer;
-}
 
 [HarmonyPatch(typeof(SettlementDefeatUtility), nameof(SettlementDefeatUtility.IsDefeated), typeof(Map), typeof(Faction))]
 static class MultifactionSettlementDefeatedPatch

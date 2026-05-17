@@ -171,6 +171,15 @@ public class PacketAwaitable<T>(Packets packetType, bool announcePacketFailure) 
     public T GetResult() => result!;
     public PacketAwaitable<T> GetAwaiter() => this;
 
+    public Task<T> AsTask()
+    {
+        var taskSource = new TaskCompletionSource<T>();
+        OnCompleted(() => taskSource.TrySetResult(GetResult()));
+        if (IsCompleted)
+            taskSource.TrySetResult(GetResult());
+        return taskSource.Task;
+    }
+
     public void SetResult(T r)
     {
         result = r;
