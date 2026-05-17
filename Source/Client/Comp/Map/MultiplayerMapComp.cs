@@ -290,7 +290,7 @@ namespace Multiplayer.Client
                 if (Multiplayer.WorldComp.trading.All(t => t.playerNegotiator?.Map != null))
                 {
                     if (Find.WindowStack.IsOpen(typeof(TradingWindow)))
-                        Find.WindowStack.TryRemove(typeof(TradingWindow), doCloseSound: false);
+                        TradingWindow.CloseOpenWindowWithoutCancel(sound: false);
                 }
 
                 // Hide transport loading window

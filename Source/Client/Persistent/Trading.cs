@@ -191,18 +191,12 @@ namespace Multiplayer.Client
 
         public void CloseWindow(bool sound = true)
         {
-            int tab = Multiplayer.WorldComp.trading.IndexOf(this);
-            if (Find.WindowStack.IsOpen<TradingWindow>())
-            {
-                Find.WindowStack.TryRemove(typeof(TradingWindow), doCloseSound: sound);
-            }
+            TradingWindow.CloseOpenWindowWithoutCancel(sound);
         }
 
         public void Tick()
         {
-            if (playerNegotiator.Spawned) return;
-
-            if (ShouldCancel())
+            if (!IsSessionValid || ShouldCancel())
                 Multiplayer.WorldComp.sessionManager.RemoveSession(this);
         }
 
@@ -264,6 +258,9 @@ namespace Multiplayer.Client
         public override void PostRemoveSession()
         {
             var index = Multiplayer.WorldComp.trading.IndexOf(this);
+            if (index < 0)
+                return;
+
             Multiplayer.WorldComp.trading.RemoveAt(index);
             Find.WindowStack?.WindowOfType<TradingWindow>()?.Notify_RemovedSession(index);
         }

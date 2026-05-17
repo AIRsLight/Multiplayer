@@ -17,6 +17,7 @@ namespace Multiplayer.Client
     {
         public static TradingWindow drawingTrade;
         public static bool cancelPressed;
+        private static bool suppressCancelOnClose;
 
         public override Vector2 InitialSize => new Vector2(1024f, UI.screenHeight);
 
@@ -31,6 +32,38 @@ namespace Multiplayer.Client
         private Dialog_Trade dialog;
 
         private static List<TabRecord> tabs = new List<TabRecord>();
+
+        public static void CloseOpenWindowWithoutCancel(bool sound = true)
+        {
+            TradingWindow window = Find.WindowStack?.WindowOfType<TradingWindow>();
+            if (window == null)
+                return;
+
+            suppressCancelOnClose = true;
+            try
+            {
+                Find.WindowStack.TryRemove(window, doCloseSound: sound);
+            }
+            finally
+            {
+                suppressCancelOnClose = false;
+            }
+        }
+
+        public override void PreClose()
+        {
+            base.PreClose();
+
+            if (suppressCancelOnClose || Multiplayer.Client == null)
+                return;
+
+            if (selectedTab < 0 || selectedTab >= Multiplayer.WorldComp.trading.Count)
+                return;
+
+            MpTradeSession session = Multiplayer.WorldComp.trading[selectedTab];
+            if (session.NegotiatorFaction == Multiplayer.RealPlayerFaction)
+                CancelTradeSession(session);
+        }
 
         public override void DoWindowContents(Rect inRect)
         {
