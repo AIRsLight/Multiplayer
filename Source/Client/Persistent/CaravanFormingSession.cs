@@ -63,11 +63,38 @@ namespace Multiplayer.Client
             transferables = dialog.transferables;
         }
 
+        private bool EnsureTransferables()
+        {
+            if (!transferables.NullOrEmpty())
+                return false;
+
+            AddItems();
+            uiDirty = true;
+            return true;
+        }
+
         public CaravanFormingProxy OpenWindow(bool sound = true)
         {
+            EnsureTransferables();
+
             var dialog = PrepareDummyDialog();
             if (!sound)
                 dialog.soundAppear = null;
+
+            PrepareTransferableWidgets(dialog);
+            dialog.Notify_TransferablesChanged();
+            Find.WindowStack.Add(dialog);
+
+            return dialog;
+        }
+
+        public void PrepareTransferableWidgets(CaravanFormingProxy dialog)
+        {
+            var rebuiltTransferables = EnsureTransferables();
+            dialog.transferables = transferables;
+
+            if (!rebuiltTransferables && dialog.pawnsTransfer != null && dialog.itemsTransfer != null && dialog.travelSuppliesTransfer != null)
+                return;
 
             CaravanUIUtility.CreateCaravanTransferableWidgets(
                 transferables,
@@ -81,11 +108,6 @@ namespace Multiplayer.Client
                 dialog.CurrentTile,
                 mapAboutToBeRemoved
             );
-
-            dialog.Notify_TransferablesChanged();
-            Find.WindowStack.Add(dialog);
-
-            return dialog;
         }
 
         private CaravanFormingProxy PrepareDummyDialog()
@@ -141,6 +163,7 @@ namespace Multiplayer.Client
         [SyncMethod]
         public void Reset()
         {
+            EnsureTransferables();
             transferables.ForEach(t => t.CountToTransfer = 0);
             uiDirty = true;
         }
@@ -187,6 +210,7 @@ namespace Multiplayer.Client
 
         public Transferable GetTransferableByThingId(int thingId)
         {
+            EnsureTransferables();
             return transferables.Find(tr => tr.things.Any(t => t.thingIDNumber == thingId));
         }
 

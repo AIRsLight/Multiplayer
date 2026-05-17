@@ -9,7 +9,7 @@ namespace Multiplayer.Client
     {
         public static CaravanFormingProxy drawing;
 
-        public CaravanFormingSession Session => map.MpComp().sessionManager.GetFirstOfType<CaravanFormingSession>();
+        public CaravanFormingSession Session => map.MpComp().sessionManager.GetFirstWithId<CaravanFormingSession>(originalSessionId);
 
         public int originalSessionId;
 
@@ -29,9 +29,12 @@ namespace Multiplayer.Client
                 if (session == null)
                 {
                     Close();
+                    return;
                 }
-                else if (session.uiDirty)
+
+                if (session.uiDirty)
                 {
+                    session.PrepareTransferableWidgets(this);
                     Notify_TransferablesChanged();
                     startingTile = session.startingTile;
                     destinationTile = session.destinationTile;
@@ -40,6 +43,10 @@ namespace Multiplayer.Client
                         SelectApproximateBestTravelSupplies();
 
                     session.uiDirty = false;
+                }
+                else
+                {
+                    session.PrepareTransferableWidgets(this);
                 }
 
                 base.DoWindowContents(inRect);

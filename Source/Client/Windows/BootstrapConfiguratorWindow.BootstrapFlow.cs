@@ -334,7 +334,7 @@ public partial class BootstrapConfiguratorWindow
     private void ReturnToMenuAndReconnect()
     {
         GenScene.GoToMainMenu();
-        LongEventHandler.ExecuteWhenFinished(ReconnectAfterReturningToMenu);
+        OnMainThread.Schedule(ReconnectAfterReturningToMenu, 0.5f);
     }
 
     private void ReconnectAfterReturningToMenu()
@@ -342,7 +342,7 @@ public partial class BootstrapConfiguratorWindow
         if (Current.ProgramState != ProgramState.Entry || Current.Game != null)
         {
             saveUploadStatus = "Waiting to finish returning to menu...";
-            LongEventHandler.ExecuteWhenFinished(ReconnectAfterReturningToMenu);
+            OnMainThread.Schedule(ReconnectAfterReturningToMenu, 0.5f);
             return;
         }
 
