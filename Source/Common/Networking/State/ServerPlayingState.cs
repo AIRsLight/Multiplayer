@@ -222,9 +222,11 @@ namespace Multiplayer.Common
                 $"Received Client_Autosaving from {Player.Username}, standalone={Server.IsStandaloneServer}, " +
                 $"isHost={Player.IsHost}, reason={packet.reason}, force={forceJoinPoint}");
 
-            // On standalone, any playing client can trigger a join point (always, regardless of settings)
-            // On hosted, only the host can trigger and only if the Autosave flag is set
-            if (Server.IsStandaloneServer ||
+            // On standalone, any playing client can trigger a save join point (always, regardless of settings).
+            // WorldTravel is only useful for standalone map streaming; without streaming it causes a join point
+            // every time someone opens the world map.
+            // On hosted, only the host can trigger and only if the Autosave flag is set.
+            if ((Server.IsStandaloneServer && packet.reason == JoinPointRequestReason.Save) ||
                 (Player.IsHost && Server.settings.autoJoinPoint.HasFlag(AutoJoinPointFlags.Autosave)))
                 Server.worldData.TryStartJoinPointCreation(forceJoinPoint, sourcePlayer: Player);
         }
