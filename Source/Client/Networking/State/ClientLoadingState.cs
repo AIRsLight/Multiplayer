@@ -64,8 +64,13 @@ public class ClientLoadingState(ConnectionBase connection) : ClientBaseState(con
     {
         OnMainThread.Schedule(() =>
         {
-            if (connection.State != ConnectionStateEnum.ClientLoading || subState != LoadingState.Waiting)
+            if (Multiplayer.Client != connection ||
+                connection.State != ConnectionStateEnum.ClientLoading ||
+                connection.StateObj != this ||
+                subState != LoadingState.Waiting)
+            {
                 return;
+            }
 
             if (worldRequestRetries >= MaxWorldRequestRetries)
             {

@@ -12,6 +12,12 @@ namespace Multiplayer.Common
             Player.UpdateStatus(PlayerStatus.Playing);
         }
 
+        [PacketHandler(Packets.Client_WorldRequest)]
+        public void HandleDuplicateWorldRequest(ByteReader data)
+        {
+            ServerLog.Detail($"{connection} sent duplicate {Packets.Client_WorldRequest} after loading; ignoring");
+        }
+
         [PacketHandler(Packets.Client_RequestRejoin)]
         public void HandleRejoin(ByteReader data)
         {
