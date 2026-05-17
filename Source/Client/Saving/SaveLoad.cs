@@ -58,10 +58,13 @@ namespace Multiplayer.Client
                 gameData = SaveGameData();
             }
 
-            MapDrawerRegenPatch.copyFrom = drawers;
-            WorldGridCachePatch.copyFrom = worldGridSaved;
-            WorldGridExposeDataPatch.copyFrom = worldGridSaved;
-            WorldRendererCachePatch.copyFrom = worldGridSaved;
+            // RimWorld 1.6 world/map renderer caches are not safe to reuse across
+            // the save-and-reload cycle used when starting a multiplayer host.
+            // Keeping these disabled matches master and avoids frozen renders.
+            //MapDrawerRegenPatch.copyFrom = drawers;
+            //WorldGridCachePatch.copyFrom = worldGridSaved;
+            //WorldGridExposeDataPatch.copyFrom = worldGridSaved;
+            //WorldRendererCachePatch.copyFrom = worldGridSaved;
 
             MusicManagerPlay musicManager = null;
             if (Find.MusicManagerPlay.gameObjectCreated)

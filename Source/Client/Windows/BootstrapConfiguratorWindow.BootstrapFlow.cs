@@ -253,7 +253,12 @@ public partial class BootstrapConfiguratorWindow
                 timeControl = settings.timeControl
             };
 
-            if (!HostWindow.HostProgrammatically(hostSettings))
+            if (!HostWindow.HostProgrammatically(hostSettings, () =>
+                OnMainThread.Enqueue(() =>
+                {
+                    saveUploadStatus = "Hosted. Saving replay...";
+                    LongEventHandler.QueueLongEvent(CreateBootstrapReplaySave, "Saving", false, null);
+                })))
             {
                 OnMainThread.Enqueue(() =>
                 {
@@ -262,12 +267,6 @@ public partial class BootstrapConfiguratorWindow
                 });
                 return;
             }
-
-            OnMainThread.Enqueue(() =>
-            {
-                saveUploadStatus = "Hosted. Saving replay...";
-                LongEventHandler.QueueLongEvent(CreateBootstrapReplaySave, "Saving", false, null);
-            });
         }
         catch (Exception exception)
         {

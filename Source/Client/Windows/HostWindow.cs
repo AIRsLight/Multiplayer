@@ -463,7 +463,7 @@ namespace Multiplayer.Client
             return invalidEndpoint == null;
         }
 
-        public static bool HostProgrammatically(ServerSettings sourceSettings)
+        public static bool HostProgrammatically(ServerSettings sourceSettings, Action onHosted = null)
         {
             var settings = MpUtil.ShallowCopy(sourceSettings, new ServerSettings());
 
@@ -476,7 +476,7 @@ namespace Multiplayer.Client
             if (!TryStartLocalServer(settings))
                 return false;
 
-            HostUtil.HostServer(settings, false);
+            HostUtil.HostServer(settings, false, onHosted);
             return true;
         }
 

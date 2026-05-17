@@ -22,7 +22,7 @@ namespace Multiplayer.Client
         // - singleplayer save, ingame
         // - replay, server browser
         // - replay, ingame
-        public static async ClientTask HostServer(ServerSettings settings, bool fromReplay)
+        public static async ClientTask HostServer(ServerSettings settings, bool fromReplay, Action onHosted = null)
         {
             Log.Message("Starting the server");
 
@@ -46,6 +46,7 @@ namespace Multiplayer.Client
             SaveLoad.SendGameData(Multiplayer.session.dataSnapshot, false);
 
             StartLocalServer();
+            onHosted?.Invoke();
         }
 
         private static void CreateSession(ServerSettings settings) =>
