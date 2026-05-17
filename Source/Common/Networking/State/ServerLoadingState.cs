@@ -35,13 +35,36 @@ public class ServerLoadingState : AsyncConnectionState
 
     protected override async Task RunState()
     {
-        await Server.worldData.WaitJoinPoint();
+        if (!await WaitForJoinPoint())
+            return;
+
         await EndIfDead();
 
         SendWorldData();
 
         Player.SendPlayerList();
         connection.ChangeState(ConnectionStateEnum.ServerPlaying);
+    }
+
+    private async Task<bool> WaitForJoinPoint()
+    {
+        var joinPointTask = Server.worldData.WaitJoinPoint();
+        var completed = await Task.WhenAny(joinPointTask, Task.Delay(WorldData.JoinPointTimeout));
+
+        if (completed != joinPointTask)
+        {
+            ServerLog.Log($"{connection} timed out waiting for join point data");
+            Server.worldData.AbortJoinPointCreation($"loading player {connection} timed out waiting for data");
+            Player.Disconnect(MpDisconnectReason.ClientLeft);
+            return false;
+        }
+
+        if (await joinPointTask)
+            return true;
+
+        ServerLog.Log($"{connection} stopped loading because join point creation was aborted");
+        Player.Disconnect(MpDisconnectReason.ClientLeft);
+        return false;
     }
 
     public void SendWorldData()

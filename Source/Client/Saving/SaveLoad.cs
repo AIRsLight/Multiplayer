@@ -4,6 +4,7 @@ using Multiplayer.Common.Networking.Packet;
 using RimWorld;
 using RimWorld.Planet;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Threading;
@@ -222,11 +223,14 @@ namespace Multiplayer.Client
 
             void Send()
             {
+                var timer = Stopwatch.StartNew();
                 var writer = new ByteWriter();
+                long mapBytes = 0;
 
                 writer.WriteInt32(mapsData.Count);
                 foreach (var mapData in mapsData)
                 {
+                    mapBytes += mapData.Value.Length;
                     writer.WriteInt32(mapData.Key);
                     writer.WritePrefixedBytes(GZipStream.CompressBuffer(mapData.Value));
                 }
@@ -235,6 +239,9 @@ namespace Multiplayer.Client
                 writer.WritePrefixedBytes(GZipStream.CompressBuffer(sessionData));
 
                 byte[] data = writer.ToArray();
+                Log.Message(
+                    $"Multiplayer join point perf: SendGameData {(async ? "async" : "sync")} compress/write {timer.ElapsedMilliseconds}ms, " +
+                    $"maps={mapsData.Count}, mapBytes={mapBytes}B, game={gameData.Length}B, session={sessionData.Length}B, packet={data.Length}B");
 
                 OnMainThread.Enqueue(() => Multiplayer.Client?.SendFragmented(Packets.Client_WorldDataUpload, data));
             };
@@ -251,11 +258,14 @@ namespace Multiplayer.Client
         /// </summary>
         public static void SendStandaloneMapSnapshots(GameDataSnapshot snapshot)
         {
+            var timer = Stopwatch.StartNew();
             var tick = snapshot.CachedAtTime;
+            long compressedBytes = 0;
 
             foreach (var (mapId, mapBytes) in snapshot.MapData)
             {
                 var compressed = GZipStream.CompressBuffer(mapBytes);
+                compressedBytes += compressed.Length;
 
                 byte[] hash;
                 using (var sha = SHA256.Create())
@@ -271,6 +281,10 @@ namespace Multiplayer.Client
 
                 OnMainThread.Enqueue(() => Multiplayer.Client?.SendFragmented(packet.Serialize()));
             }
+
+            Log.Message(
+                $"Multiplayer join point perf: SendStandaloneMapSnapshots {timer.ElapsedMilliseconds}ms, " +
+                $"maps={snapshot.MapData.Count}, raw={snapshot.MapData.Values.Sum(bytes => bytes.Length)}B, compressed={compressedBytes}B");
         }
 
         /// <summary>
@@ -279,6 +293,7 @@ namespace Multiplayer.Client
         /// </summary>
         public static void SendStandaloneWorldSnapshot(GameDataSnapshot snapshot)
         {
+            var timer = Stopwatch.StartNew();
             var tick = snapshot.CachedAtTime;
             var worldCompressed = GZipStream.CompressBuffer(snapshot.GameData);
             var sessionCompressed = GZipStream.CompressBuffer(snapshot.SessionData);
@@ -297,6 +312,11 @@ namespace Multiplayer.Client
             };
 
             OnMainThread.Enqueue(() => Multiplayer.Client?.SendFragmented(packet.Serialize()));
+
+            Log.Message(
+                $"Multiplayer join point perf: SendStandaloneWorldSnapshot {timer.ElapsedMilliseconds}ms, " +
+                $"worldRaw={snapshot.GameData.Length}B, sessionRaw={snapshot.SessionData.Length}B, " +
+                $"worldCompressed={worldCompressed.Length}B, sessionCompressed={sessionCompressed.Length}B");
         }
     }
 

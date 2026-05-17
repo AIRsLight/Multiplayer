@@ -18,6 +18,15 @@ namespace Multiplayer.Client
             this.originalSessionId = originalSessionId;
         }
 
+        public override void PreClose()
+        {
+            base.PreClose();
+
+            var session = Session;
+            if (session?.faction == Multiplayer.RealPlayerFaction)
+                session.Cancel();
+        }
+
         public override void DoWindowContents(Rect inRect)
         {
             var session = Session;

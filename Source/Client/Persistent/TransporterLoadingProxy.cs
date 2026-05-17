@@ -17,6 +17,15 @@ namespace Multiplayer.Client
         {
         }
 
+        public override void PreClose()
+        {
+            base.PreClose();
+
+            var session = Session;
+            if (session?.faction == Multiplayer.RealPlayerFaction)
+                session.Remove();
+        }
+
         public override void DoWindowContents(Rect inRect)
         {
             var session = Session;

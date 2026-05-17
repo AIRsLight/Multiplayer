@@ -23,7 +23,12 @@ public class WorldData
     public StandaloneWorldSnapshotState standaloneWorldSnapshot = new();
     public Dictionary<int, StandaloneMapSnapshotState> standaloneMapSnapshots = new();
 
-    private TaskCompletionSource<WorldData>? dataSource;
+    public static readonly TimeSpan JoinPointTimeout = TimeSpan.FromSeconds(120);
+
+    private TaskCompletionSource<bool>? dataSource;
+    private int joinPointStartedAtNetTick;
+    private string joinPointIssuer = "";
+    private int? joinPointIssuerPlayerId;
 
     public bool CreatingJoinPoint => tmpMapCmds != null;
 
@@ -46,9 +51,16 @@ public class WorldData
             return false;
         }
 
+        if (CreatingJoinPoint && IsJoinPointTimedOut)
+        {
+            AbortJoinPointCreation($"timed out after {JoinPointTimeout.TotalSeconds:0}s before starting a new join point");
+        }
+
         if (CreatingJoinPoint)
         {
-            ServerLog.Detail("Join point skipped: already creating one");
+            ServerLog.Detail(
+                $"Join point skipped: already creating one, issuer={joinPointIssuer}, " +
+                $"elapsedNetTicks={Server.NetTimer - joinPointStartedAtNetTick}");
             return false;
         }
 
@@ -65,16 +77,28 @@ public class WorldData
             }
         }
 
-        ServerLog.Detail($"Join point started at tick={currentTick}, force={force}, standalone={Server.IsStandaloneServer}");
+        joinPointStartedAtNetTick = Server.NetTimer;
+        joinPointIssuer = issuingPlayer != null ? $"{issuingPlayer.Username}#{issuingPlayer.id}" : "server";
+        joinPointIssuerPlayerId = issuingPlayer?.id;
+
+        ServerLog.Detail(
+            $"Join point started at tick={currentTick}, force={force}, standalone={Server.IsStandaloneServer}, " +
+            $"issuer={joinPointIssuer}");
         Server.SendChat("Creating a join point...");
 
         Server.commands.Send(CommandType.CreateJoinPoint, ScheduledCommand.NoFaction, ScheduledCommand.Global, Array.Empty<byte>(),
             sourcePlayer: Server.IsStandaloneServer ? issuingPlayer : null);
         tmpMapCmds = new Dictionary<int, List<byte[]>>();
-        dataSource = new TaskCompletionSource<WorldData>();
+        dataSource = new TaskCompletionSource<bool>();
 
         return true;
     }
+
+    public bool IsJoinPointTimedOut =>
+        CreatingJoinPoint && Server.NetTimer - joinPointStartedAtNetTick >= JoinPointTimeout.TotalSeconds * MultiplayerServer.NetTicksPerSecond;
+
+    public bool IsJoinPointIssuer(ServerPlayer player) =>
+        CreatingJoinPoint && joinPointIssuerPlayerId == player.id;
 
     public void EndJoinPointCreation()
     {
@@ -96,23 +120,31 @@ public class WorldData
             }
         }
 
-        dataSource!.SetResult(this);
+        dataSource?.SetResult(true);
         dataSource = null;
+        joinPointIssuer = "";
+        joinPointIssuerPlayerId = null;
     }
 
-    public void AbortJoinPointCreation()
+    public void AbortJoinPointCreation(string reason = "")
     {
         if (!CreatingJoinPoint)
             return;
 
+        ServerLog.Log(
+            $"Join point aborted{(string.IsNullOrEmpty(reason) ? "" : $": {reason}")}, " +
+            $"issuer={joinPointIssuer}, elapsedNetTicks={Server.NetTimer - joinPointStartedAtNetTick}");
+
         tmpMapCmds = null;
-        dataSource?.SetResult(this);
+        dataSource?.SetResult(false);
         dataSource = null;
+        joinPointIssuer = "";
+        joinPointIssuerPlayerId = null;
     }
 
-    public Task<WorldData> WaitJoinPoint()
+    public Task<bool> WaitJoinPoint()
     {
-        return dataSource?.Task ?? Task.FromResult(this);
+        return dataSource?.Task ?? Task.FromResult(true);
     }
 
     public bool TryAcceptStandaloneWorldSnapshot(ServerPlayer player, int tick, byte[] worldSnapshot,

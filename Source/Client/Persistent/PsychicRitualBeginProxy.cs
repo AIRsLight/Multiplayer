@@ -47,6 +47,12 @@ public class PsychicRitualBeginProxy : Dialog_BeginPsychicRitual, ISwitchToMap
         }
     }
 
+    public override void PreClose()
+    {
+        base.PreClose();
+        Session?.Remove();
+    }
+
     public override void DoWindowContents(Rect inRect)
     {
         drawing = this;

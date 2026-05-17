@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using HarmonyLib;
 using Multiplayer.Client.Comp;
@@ -276,23 +277,37 @@ public class AsyncWorldTimeComp : IExposable, ITickable
 
     private static void CreateJoinPointAndSendIfHost()
     {
-        Multiplayer.session.dataSnapshot = SaveLoad.CreateGameDataSnapshot(SaveLoad.SaveAndReload(), Multiplayer.GameComp.multifaction);
+        var totalTimer = Stopwatch.StartNew();
+        Log.Message($"Multiplayer join point perf: start tick={TickPatch.Timer}, standalone={Multiplayer.session?.ConnectedToStandaloneServer == true}, maps={Find.Maps.Count}");
+
+        var stepTimer = Stopwatch.StartNew();
+        TempGameData gameData = SaveLoad.SaveAndReload();
+        Log.Message($"Multiplayer join point perf: SaveAndReload {stepTimer.ElapsedMilliseconds}ms");
+
+        stepTimer.Restart();
+        Multiplayer.session.dataSnapshot = SaveLoad.CreateGameDataSnapshot(gameData, Multiplayer.GameComp.multifaction);
+        GameDataSnapshot snapshot = Multiplayer.session.dataSnapshot;
+        Log.Message(
+            $"Multiplayer join point perf: CreateGameDataSnapshot {stepTimer.ElapsedMilliseconds}ms, " +
+            $"game={snapshot.GameData.Length}B, session={snapshot.SessionData.Length}B, maps={snapshot.MapData.Count}, mapBytes={snapshot.MapData.Values.Sum(bytes => bytes.Length)}B");
 
         if (!TickPatch.Simulating && !Multiplayer.IsReplay)
         {
             if (Multiplayer.session?.ConnectedToStandaloneServer == true)
             {
                 // Standalone: every client uploads world data + individual snapshots
-                SaveLoad.SendGameData(Multiplayer.session.dataSnapshot, true);
-                SaveLoad.SendStandaloneMapSnapshots(Multiplayer.session.dataSnapshot);
-                SaveLoad.SendStandaloneWorldSnapshot(Multiplayer.session.dataSnapshot);
+                SaveLoad.SendGameData(snapshot, true);
+                SaveLoad.SendStandaloneMapSnapshots(snapshot);
+                SaveLoad.SendStandaloneWorldSnapshot(snapshot);
             }
             else if (Multiplayer.LocalServer != null || Multiplayer.arbiterInstance)
             {
                 // Hosted: only host/arbiter uploads world data
-                SaveLoad.SendGameData(Multiplayer.session.dataSnapshot, true);
+                SaveLoad.SendGameData(snapshot, true);
             }
         }
+
+        Log.Message($"Multiplayer join point perf: CreateJoinPointAndSendIfHost total {totalTimer.ElapsedMilliseconds}ms");
     }
 
     public void SetTimeEverywhere(TimeSpeed speed)

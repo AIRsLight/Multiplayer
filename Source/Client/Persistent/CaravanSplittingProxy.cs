@@ -13,6 +13,7 @@ namespace Multiplayer.Client.Persistent
     public class CaravanSplittingProxy : Dialog_SplitCaravan, ISwitchToMap
     {
         public static bool CreatingProxy;
+        public static bool SuppressCancelOnClose;
 
         /// <summary>
         /// Reference to this proxy's CaravanSplittingSession.
@@ -37,6 +38,14 @@ namespace Multiplayer.Client.Persistent
 
             if (soundAmbient != null)
                 sustainerAmbient = soundAmbient.TrySpawnSustainer(SoundInfo.OnCamera(MaintenanceType.PerFrame));
+        }
+
+        public override void PreClose()
+        {
+            base.PreClose();
+
+            if (!SuppressCancelOnClose)
+                session?.CancelSplittingSession();
         }
 
         /// <summary>

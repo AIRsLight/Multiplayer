@@ -60,6 +60,12 @@ public class RitualBeginProxy : Dialog_BeginRitual, ISwitchToMap
         }
     }
 
+    public override void PreClose()
+    {
+        base.PreClose();
+        Session?.Remove();
+    }
+
     public override void DoWindowContents(Rect inRect)
     {
         drawing = this;

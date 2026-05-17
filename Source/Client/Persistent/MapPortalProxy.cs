@@ -10,6 +10,12 @@ public class MapPortalProxy(MapPortal portal) : Dialog_EnterPortal(portal), ISwi
 
     public MapPortalSession Session => portal.Map.MpComp().sessionManager.GetFirstOfType<MapPortalSession>();
 
+    public override void PreClose()
+    {
+        base.PreClose();
+        Session?.Remove();
+    }
+
     public override void DoWindowContents(Rect inRect)
     {
         drawing = this;

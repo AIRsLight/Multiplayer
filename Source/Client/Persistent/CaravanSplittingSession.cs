@@ -142,7 +142,15 @@ namespace Multiplayer.Client.Persistent
         /// </summary>
         [SyncMethod]
         public void CancelSplittingSession() {
-            dialog.Close();
+            CaravanSplittingProxy.SuppressCancelOnClose = true;
+            try
+            {
+                dialog?.Close();
+            }
+            finally
+            {
+                CaravanSplittingProxy.SuppressCancelOnClose = false;
+            }
             Multiplayer.WorldComp.sessionManager.RemoveSession(this);
         }
 
@@ -166,7 +174,15 @@ namespace Multiplayer.Client.Persistent
             if (dialog.TrySplitCaravan())
             {
                 SoundDefOf.Tick_High.PlayOneShotOnCamera();
-                dialog.Close(false);
+                CaravanSplittingProxy.SuppressCancelOnClose = true;
+                try
+                {
+                    dialog.Close(false);
+                }
+                finally
+                {
+                    CaravanSplittingProxy.SuppressCancelOnClose = false;
+                }
                 Multiplayer.WorldComp.sessionManager.RemoveSession(this);
             }
         }
