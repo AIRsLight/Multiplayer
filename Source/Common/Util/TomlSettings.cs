@@ -51,6 +51,8 @@ class TomlScribe : ScribeLike.Provider
             {
                 if (typeof(T).IsEnum)
                     value = (T)Enum.Parse(typeof(T), (string)root[label]);
+                else if (typeof(T) == typeof(string[]) && root[label] is TomlArray array)
+                    value = (T)(object)array.OfType<string>().ToArray();
                 else if (root[label] is IConvertible convertible)
                     value = (T)convertible.ToType(typeof(T), null);
                 else
@@ -65,6 +67,8 @@ class TomlScribe : ScribeLike.Provider
         {
             if (typeof(T).IsEnum)
                 root[label] = value.ToString()!;
+            else if (value is string[] array)
+                root[label] = new TomlArray(array);
             else
                 root[label] = value;
         }

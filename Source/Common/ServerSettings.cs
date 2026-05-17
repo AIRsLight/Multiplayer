@@ -23,6 +23,7 @@ namespace Multiplayer.Common
         public bool debugMode;
         public bool desyncTraces = true;
         public bool syncConfigs = true;
+        public string[] compatibleClientVersions = [];
         public AutoJoinPointFlags autoJoinPoint = AutoJoinPointFlags.Join | AutoJoinPointFlags.Desync;
         public DevModeScope devModeScope;
         public bool hasPassword;
@@ -65,6 +66,7 @@ namespace Multiplayer.Common
             ScribeLike.Look(ref debugMode, "debugMode");
             ScribeLike.Look(ref desyncTraces, "desyncTraces", true);
             ScribeLike.Look(ref syncConfigs, "syncConfigs", true);
+            ScribeLike.Look(ref compatibleClientVersions, "compatibleClientVersions", []);
             ScribeLike.Look(ref autoJoinPoint, "autoJoinPoint", AutoJoinPointFlags.Join | AutoJoinPointFlags.Desync);
             ScribeLike.Look(ref devModeScope, "devModeScope");
             ScribeLike.Look(ref hasPassword, "hasPassword");

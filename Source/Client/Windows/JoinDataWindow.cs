@@ -271,7 +271,7 @@ namespace Multiplayer.Client
         private string DiffString()
         {
             var str = "";
-            str += $"RW version match: {remote.remoteMpVersion == MpVersion.Version}, ";
+            str += $"MP version match: {remote.MpVersionMatches}, ";
             str += $"Mod list diff: {modListDiff}, ";
             str += $"Files match: {!filesRoot.children.Any()}, ";
             str += $"Config sync enabled: {remote.hasConfigs}, ";
@@ -351,7 +351,7 @@ namespace Multiplayer.Client
                 Widgets.Label(serverColumn.Down(2 * rowHeight), remote.remoteMpVersion);
                 Widgets.Label(clientColumn.Down(2 * rowHeight), MpVersion.Version);
 
-                bool mpVersionCheck = remote.remoteMpVersion == MpVersion.Version;
+                bool mpVersionCheck = remote.MpVersionMatches;
                 Widgets.Checkbox(new Rect(0, 0, 24, 24).CenterOn(checkboxColumn.Down(2 * rowHeight)).min, ref mpVersionCheck);
 
                 inRect.yMin += rowHeight * 3 + 30f;

@@ -7,6 +7,7 @@ namespace Multiplayer.Common
     {
         public const string SimpleVersion = "0.11.5";
         public const int Protocol = 55;
+        public const string CompatibleClientVersionsPrefix = "COMPATIBLE_CLIENT_VERSIONS:";
 
         public static readonly string? GitHash = Assembly.GetExecutingAssembly()
             .GetCustomAttributes<AssemblyMetadataAttribute>()

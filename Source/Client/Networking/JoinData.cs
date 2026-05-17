@@ -76,6 +76,7 @@ namespace Multiplayer.Client
         {
             return
                 remote.remoteRwVersion == VersionControl.CurrentVersionString &&
+                remote.MpVersionMatches &&
                 remote.CompareMods(activeModsSnapshot) == ModListDiff.None &&
                 remote.remoteFiles.DictsEqual(modFilesSnapshot) &&
                 (!remote.hasConfigs || remote.remoteModConfigs.EqualAsSets(SyncConfigs.GetSyncableConfigContents(remote.RemoteModIds.ToList())));
@@ -155,6 +156,32 @@ namespace Multiplayer.Client
         public bool hasConfigs;
 
         public IEnumerable<string> RemoteModIds => remoteMods.Select(m => m.packageId);
+        public bool MpVersionMatches => remoteMpVersion == MpVersion.Version ||
+                                        LocalVersionOrHash.Any(CompatibleClientVersions.Contains);
+
+        private IEnumerable<string> CompatibleClientVersions
+        {
+            get
+            {
+                if (!remoteMpVersion.StartsWith(MpVersion.CompatibleClientVersionsPrefix))
+                    return [];
+
+                return remoteMpVersion[MpVersion.CompatibleClientVersionsPrefix.Length..]
+                    .Split([';'], StringSplitOptions.RemoveEmptyEntries)
+                    .Select(version => version.Trim());
+            }
+        }
+
+        private static IEnumerable<string> LocalVersionOrHash
+        {
+            get
+            {
+                yield return MpVersion.Version;
+
+                if (MpVersion.GitHash != null)
+                    yield return MpVersion.GitHash;
+            }
+        }
 
         public ModListDiff CompareMods(List<ModMetaData> localMods)
         {

@@ -53,7 +53,7 @@ public class WorldData
         }
 
         var issuingPlayer = sourcePlayer;
-        if (Server.IsStandaloneServer && issuingPlayer == null)
+        if (Server.IsStandaloneServer && issuingPlayer?.IsPlaying != true)
         {
             issuingPlayer = Server.PlayingPlayers.FirstOrDefault(player => player.IsHost)
                 ?? Server.PlayingPlayers.FirstOrDefault();

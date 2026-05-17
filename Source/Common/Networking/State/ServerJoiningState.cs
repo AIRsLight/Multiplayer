@@ -38,7 +38,7 @@ public class ServerJoiningState : AsyncConnectionState
         // For the normal first join, serve the persisted state immediately instead of blocking on WaitJoinPoint.
         if ((Server.IsStandaloneServer && Server.PlayingPlayers.Any()) ||
             (!Server.IsStandaloneServer && Server.settings.autoJoinPoint.HasFlag(AutoJoinPointFlags.Join)))
-            Server.worldData.TryStartJoinPointCreation(sourcePlayer: Player);
+            Server.worldData.TryStartJoinPointCreation(sourcePlayer: Server.IsStandaloneServer ? null : Player);
 
         Server.playerManager.OnJoin(Player);
         Server.playerManager.SendInitDataCommand(Player);
@@ -173,7 +173,7 @@ public class ServerJoiningState : AsyncConnectionState
             gameName = Server.settings.gameName,
             playerId = Player.id,
             rwVersion = serverInitData.RwVersion,
-            mpVersion = MpVersion.Version,
+            mpVersion = GetReportedMpVersion(),
             defStatus = defStatus,
             configsIncluded = serverInitData.IncludeConfigs,
             rawServerInitData = serverInitData.RawData,
@@ -185,6 +185,15 @@ public class ServerJoiningState : AsyncConnectionState
         }
 
         return defsMatch;
+    }
+
+    private string GetReportedMpVersion()
+    {
+        if (Server.settings.compatibleClientVersions.Length == 0)
+            return MpVersion.Version;
+
+        return MpVersion.CompatibleClientVersionsPrefix +
+               string.Join(';', Server.settings.compatibleClientVersions.Prepend(MpVersion.Version));
     }
 }
 
