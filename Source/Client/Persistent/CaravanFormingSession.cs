@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using Multiplayer.API;
 using RimWorld;
 using RimWorld.Planet;
@@ -28,7 +27,6 @@ namespace Multiplayer.Client
         public override Map Map => map;
 
         public override bool IsSessionValid => map != null && faction != null;
-        public bool HasUsableTransferables => transferables?.Any(tr => tr.things.Any(IsUsableThing)) == true;
 
         // Used when saving and loading
         private CaravanFormingSession(Map map) : base(map)
@@ -65,52 +63,11 @@ namespace Multiplayer.Client
             transferables = dialog.transferables;
         }
 
-        private bool IsUsableThing(Thing thing)
-        {
-            if (thing == null || thing.Destroyed)
-                return false;
-
-            if (thing.Map == map)
-                return true;
-
-            if (thing is Pawn pawn && pawn.Spawned && pawn.Map == map)
-                return true;
-
-            return false;
-        }
-
-        private bool EnsureTransferables()
-        {
-            if (!transferables.NullOrEmpty())
-                return false;
-
-            AddItems();
-            uiDirty = true;
-            return true;
-        }
-
         public CaravanFormingProxy OpenWindow(bool sound = true)
         {
-            EnsureTransferables();
-
             var dialog = PrepareDummyDialog();
             if (!sound)
                 dialog.soundAppear = null;
-
-            PrepareTransferableWidgets(dialog);
-            dialog.Notify_TransferablesChanged();
-            Find.WindowStack.Add(dialog);
-
-            return dialog;
-        }
-
-        public void PrepareTransferableWidgets(CaravanFormingProxy dialog)
-        {
-            var rebuiltTransferables = EnsureTransferables();
-            dialog.transferables = transferables;
-
-            if (!rebuiltTransferables && dialog.pawnsTransfer != null && dialog.itemsTransfer != null && dialog.travelSuppliesTransfer != null)
-                return;
 
             CaravanUIUtility.CreateCaravanTransferableWidgets(
                 transferables,
@@ -124,6 +81,11 @@ namespace Multiplayer.Client
                 dialog.CurrentTile,
                 mapAboutToBeRemoved
             );
+
+            dialog.Notify_TransferablesChanged();
+            Find.WindowStack.Add(dialog);
+
+            return dialog;
         }
 
         private CaravanFormingProxy PrepareDummyDialog()
@@ -179,7 +141,6 @@ namespace Multiplayer.Client
         [SyncMethod]
         public void Reset()
         {
-            EnsureTransferables();
             transferables.ForEach(t => t.CountToTransfer = 0);
             uiDirty = true;
         }
@@ -226,7 +187,6 @@ namespace Multiplayer.Client
 
         public Transferable GetTransferableByThingId(int thingId)
         {
-            EnsureTransferables();
             return transferables.Find(tr => tr.things.Any(t => t.thingIDNumber == thingId));
         }
 

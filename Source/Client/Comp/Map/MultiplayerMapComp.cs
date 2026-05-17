@@ -38,12 +38,6 @@ namespace Multiplayer.Client
         public CaravanFormingSession CreateCaravanFormingSession(Faction faction, bool reform, Action onClosed, bool mapAboutToBeRemoved, IntVec3? meetingSpot = null)
         {
             var caravanForming = sessionManager.GetFirstOfType<CaravanFormingSession>();
-            if (caravanForming is { HasUsableTransferables: false })
-            {
-                sessionManager.RemoveSession(caravanForming);
-                caravanForming = null;
-            }
-
             if (caravanForming == null)
             {
                 caravanForming = new CaravanFormingSession(faction, map, reform, onClosed, mapAboutToBeRemoved, meetingSpot);

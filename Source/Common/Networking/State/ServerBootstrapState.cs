@@ -85,12 +85,13 @@ public class ServerBootstrapState(ConnectionBase connection) : MpConnectionState
         File.Delete(SavePath);
         File.Move(tempPath, SavePath);
 
-        ServerLog.Log("Bootstrap: wrote save.zip. Configuration complete; stopping server.");
+        ServerLog.Log("Bootstrap: wrote save.zip. Configuration complete; restarting server.");
 
         foreach (var player in Server.JoinedPlayers.ToList())
             player.conn.Send(new ServerDisconnectPacket { reason = MpDisconnectReason.BootstrapCompleted, data = Array.Empty<byte>() });
 
         ResetUploadState();
+        Server.OnBootstrapCompleted?.Invoke();
         Server.running = false;
         Server.TryStop();
     }

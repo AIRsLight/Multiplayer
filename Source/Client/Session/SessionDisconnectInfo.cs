@@ -79,7 +79,7 @@ public struct SessionDisconnectInfo
         if (reason == MpDisconnectReason.BootstrapCompleted)
         {
             titleKey = "Bootstrap configuration completed";
-            descKey = "The server will now shut down; please restart it manually to start normally.";
+            descKey = "The server is restarting to start normally with the uploaded save.";
             disconnectInfo.specialButtonTranslated = "Reconnect";
 
             // Once disconnected, Multiplayer.session is set to null, so we need to keep our own copy to be able to

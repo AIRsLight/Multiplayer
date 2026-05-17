@@ -1,4 +1,5 @@
 ﻿using System.Net;
+using System.Diagnostics;
 using Multiplayer.Common;
 using Multiplayer.Common.Util;
 
@@ -7,6 +8,14 @@ Directory.SetCurrentDirectory(AppContext.BaseDirectory);
 const string settingsFile = "settings.toml";
 const string stopCmd = "stop";
 const string saveFile = "save.zip";
+const string restartDelayArg = "--bootstrap-restart-delay-ms=";
+
+var startupDelay = GetBootstrapRestartDelay();
+if (startupDelay > 0)
+{
+    ServerLog.Log($"Bootstrap restart: waiting {startupDelay}ms for previous server to shut down.");
+    Thread.Sleep(startupDelay);
+}
 
 var settings = new ServerSettings
 {
@@ -30,6 +39,7 @@ var server = MultiplayerServer.instance = new MultiplayerServer(settings)
     running = true,
     IsStandaloneServer = true,
 };
+server.OnBootstrapCompleted = StartReplacementServer;
 
 var persistence = new StandalonePersistence(AppContext.BaseDirectory);
 server.persistence = persistence;
@@ -114,16 +124,81 @@ if (settings.lan)
     server.netManagers.Add(lan);
 }
 
-new Thread(server.Run) { Name = "Server thread" }.Start();
+var serverThread = new Thread(server.Run) { Name = "Server thread" };
+serverThread.Start();
 
-while (server.running)
+new Thread(ReadConsoleCommands) { Name = "Server console thread", IsBackground = true }.Start();
+serverThread.Join();
+
+void ReadConsoleCommands()
 {
-    var cmd = Console.ReadLine();
-    if (cmd != null)
+    while (server.running)
+    {
+        var cmd = Console.ReadLine();
+        if (cmd == null)
+            return;
+
         server.Enqueue(() => server.HandleChatCmd(consoleSource, cmd));
 
-    if (cmd == stopCmd)
-        break;
+        if (cmd == stopCmd)
+        {
+            server.running = false;
+            return;
+        }
+    }
+}
+
+int GetBootstrapRestartDelay()
+{
+    foreach (var arg in Environment.GetCommandLineArgs())
+        if (arg.StartsWith(restartDelayArg, StringComparison.Ordinal) &&
+            int.TryParse(arg[restartDelayArg.Length..], out var delay))
+            return Math.Max(0, delay);
+
+    return 0;
+}
+
+void StartReplacementServer()
+{
+    try
+    {
+        var currentArgs = Environment.GetCommandLineArgs();
+        var processPath = Environment.ProcessPath;
+        if (string.IsNullOrWhiteSpace(processPath))
+            processPath = currentArgs.FirstOrDefault();
+
+        if (string.IsNullOrWhiteSpace(processPath))
+        {
+            ServerLog.Error("Bootstrap restart failed: current process path is unknown.");
+            return;
+        }
+
+        var isDotnetHost = Path.GetFileNameWithoutExtension(processPath).Equals("dotnet", StringComparison.OrdinalIgnoreCase);
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = processPath,
+            WorkingDirectory = AppContext.BaseDirectory,
+            UseShellExecute = false
+        };
+
+        var firstArg = isDotnetHost ? 0 : 1;
+        for (var i = firstArg; i < currentArgs.Length; i++)
+        {
+            if (!currentArgs[i].StartsWith(restartDelayArg, StringComparison.Ordinal))
+                startInfo.ArgumentList.Add(currentArgs[i]);
+        }
+
+        startInfo.ArgumentList.Add($"{restartDelayArg}1000");
+
+        if (Process.Start(startInfo) == null)
+            ServerLog.Error("Bootstrap restart failed: Process.Start returned null.");
+        else
+            ServerLog.Log("Bootstrap restart: replacement server process started.");
+    }
+    catch (Exception e)
+    {
+        ServerLog.Error($"Bootstrap restart failed: {e}");
+    }
 }
 
 class ConsoleSource : IChatSource

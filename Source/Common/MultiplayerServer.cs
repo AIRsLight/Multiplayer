@@ -75,6 +75,7 @@ namespace Multiplayer.Common
 
         public bool IsStandaloneServer { get; set; }
         public StandalonePersistence? persistence;
+        public Action? OnBootstrapCompleted;
 
         public MultiplayerServer(ServerSettings settings)
         {

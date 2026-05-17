@@ -88,25 +88,6 @@ namespace Multiplayer.Client.Persistent
     [HarmonyPatch(typeof(Dialog_FormCaravan), nameof(Dialog_FormCaravan.TryFormAndSendCaravan))]
     static class TryFormAndSendCaravanPatch
     {
-        [HarmonyPriority(Priority.First)]
-        [HarmonyBefore("SmashPhil.VehicleFramework")]
-        static bool Prefix(Dialog_FormCaravan __instance)
-        {
-            if (Multiplayer.InInterface && __instance is CaravanFormingProxy dialog)
-            {
-                dialog.Session?.TryFormAndSendCaravan();
-                return false;
-            }
-
-            return true;
-        }
-    }
-
-    [HarmonyPatch(typeof(Dialog_FormCaravan), "TrySend")]
-    static class TrySendCaravanPatch
-    {
-        [HarmonyPriority(Priority.First)]
-        [HarmonyBefore("SmashPhil.VehicleFramework")]
         static bool Prefix(Dialog_FormCaravan __instance)
         {
             if (Multiplayer.InInterface && __instance is CaravanFormingProxy dialog)
