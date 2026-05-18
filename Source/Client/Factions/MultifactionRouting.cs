@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Linq;
 using Multiplayer.Client.Util;
 using Multiplayer.Common;
@@ -108,6 +109,33 @@ public static class MultifactionRouting
             $"mapContext={MapInfo(Multiplayer.MapContext)}");
     }
 
+    public static void TraceDecisionSync(object target, object[] args, string action)
+    {
+        if (!ShouldTrace)
+            return;
+
+        var letter = LetterFromSyncTarget(target);
+        var decisionOwner = ResolveDecisionOwner(letter, out var decisionReason);
+        var executingFaction = Faction.OfPlayer;
+        var message = "[MultifactionRoute] decision " +
+            $"action={action} " +
+            $"target={target?.GetType().Name ?? "null"} " +
+            $"type={letter?.GetType().Name ?? "null"} " +
+            $"def={letter?.def?.defName ?? "null"} " +
+            $"decisionOwner={FactionInfo(decisionOwner)} " +
+            $"decisionReason={decisionReason} " +
+            $"executingFaction={FactionInfo(executingFaction)} " +
+            $"relatedFaction={FactionInfo(letter?.relatedFaction)} " +
+            $"mapContext={MapInfo(Multiplayer.MapContext)} " +
+            $"args={args?.Length ?? 0} " +
+            $"targets={TargetsInfo(letter?.lookTargets)}";
+
+        MpLog.Log(message);
+
+        if (decisionOwner != null && executingFaction is { IsPlayer: true } && decisionOwner != executingFaction)
+            MpLog.Warn("[MultifactionRoute] decision owner mismatch " + message);
+    }
+
     public static void WarnUnresolvedLetter(Letter letter)
     {
         if (!ShouldTrace)
@@ -125,6 +153,20 @@ public static class MultifactionRouting
         Multiplayer.Client != null &&
         Multiplayer.GameComp.multifaction &&
         Multiplayer.ShowDevInfo;
+
+    private static Letter LetterFromSyncTarget(object target)
+    {
+        if (target is Letter letter)
+            return letter;
+
+        if (target == null)
+            return null;
+
+        return target.GetType()
+            .GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+            .FirstOrDefault(f => typeof(Letter).IsAssignableFrom(f.FieldType))
+            ?.GetValue(target) as Letter;
+    }
 
     private static Faction FactionForTargets(LookTargets targets, out string reason)
     {

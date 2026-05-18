@@ -4,6 +4,7 @@ using System.Reflection;
 using System.Reflection.Emit;
 using HarmonyLib;
 using Multiplayer.API;
+using Multiplayer.Client.Factions;
 using Multiplayer.Client.Patches;
 using Multiplayer.Common;
 using MultiplayerLoader;
@@ -337,20 +338,26 @@ namespace Multiplayer.Client
         {
             SyncDelegate.Lambda(typeof(ChoiceLetter_ChoosePawn), nameof(ChoiceLetter_ChoosePawn.Option_ChoosePawn), 0); // Choose pawn (currently used for quest rewards)
 
-            SyncMethod.LambdaInGetter(typeof(ChoiceLetter_AcceptJoiner), nameof(ChoiceLetter_AcceptJoiner.Choices), 0); // Accept joiner
+            SyncMethod.LambdaInGetter(typeof(ChoiceLetter_AcceptJoiner), nameof(ChoiceLetter_AcceptJoiner.Choices), 0)
+                .SetPreInvoke(TraceChoiceAction("accept-joiner")); // Accept joiner
+            var rejectJoiner = SyncMethod.LambdaInGetter(typeof(ChoiceLetter_AcceptJoiner), nameof(ChoiceLetter_AcceptJoiner.Choices), 1);
+            rejectJoiner.SetPreInvoke(TraceChoiceAction("reject-joiner"));
             CloseDialogsForExpiredLetters.RegisterDefaultLetterChoice(
-                SyncMethod.LambdaInGetter(typeof(ChoiceLetter_AcceptJoiner), nameof(ChoiceLetter_AcceptJoiner.Choices), 1)
-                    .method); // Reject joiner
+                rejectJoiner.method); // Reject joiner
 
-            SyncMethod.LambdaInGetter(typeof(ChoiceLetter_AcceptVisitors), nameof(ChoiceLetter_AcceptVisitors.Option_Accept), 0); // Accept visitors join offer
+            SyncMethod.LambdaInGetter(typeof(ChoiceLetter_AcceptVisitors), nameof(ChoiceLetter_AcceptVisitors.Option_Accept), 0)
+                .SetPreInvoke(TraceChoiceAction("accept-visitors")); // Accept visitors join offer
+            var rejectVisitors = SyncMethod.LambdaInGetter(typeof(ChoiceLetter_AcceptVisitors), nameof(ChoiceLetter_AcceptVisitors.Option_RejectWithCharityConfirmation), 1);
+            rejectVisitors.SetPreInvoke(TraceChoiceAction("reject-visitors"));
             CloseDialogsForExpiredLetters.RegisterDefaultLetterChoice(
-                SyncMethod.LambdaInGetter(typeof(ChoiceLetter_AcceptVisitors), nameof(ChoiceLetter_AcceptVisitors.Option_RejectWithCharityConfirmation), 1)
-                    .method); // Reject visitors join offer
+                rejectVisitors.method); // Reject visitors join offer
 
-            SyncMethod.LambdaInGetter(typeof(ChoiceLetter_RansomDemand), nameof(ChoiceLetter_RansomDemand.Choices), 0); // Accept ransom demand
+            SyncMethod.LambdaInGetter(typeof(ChoiceLetter_RansomDemand), nameof(ChoiceLetter_RansomDemand.Choices), 0)
+                .SetPreInvoke(TraceChoiceAction("accept-ransom")); // Accept ransom demand
+            var rejectRansom = SyncMethod.LambdaInGetter(typeof(ChoiceLetter), nameof(ChoiceLetter.Option_Reject), 0);
+            rejectRansom.SetPreInvoke(TraceChoiceAction("reject-ransom"));
             CloseDialogsForExpiredLetters.RegisterDefaultLetterChoice(
-                SyncMethod.LambdaInGetter(typeof(ChoiceLetter), nameof(ChoiceLetter.Option_Reject), 0)
-                    .method, typeof(ChoiceLetter_RansomDemand)); // Generic reject (currently only used by ransom demand)
+                rejectRansom.method, typeof(ChoiceLetter_RansomDemand)); // Generic reject (currently only used by ransom demand)
 
             // Special case - we could decide to treat making the baby as a colonist the default option, however I've added code to keep the current state
             CloseDialogsForExpiredLetters.RegisterDefaultLetterChoice(AccessTools.Method(typeof(SyncDelegates), nameof(SyncBabyToChildLetter)), typeof(ChoiceLetter_BabyToChild));
@@ -366,11 +373,19 @@ namespace Multiplayer.Client
                 .TransformArgument(1, TraitSerializer);
 
             // Creep joiner
-            SyncMethod.LambdaInGetter(typeof(ChoiceLetter_AcceptCreepJoiner), nameof(ChoiceLetter_AcceptCreepJoiner.Choices), 0); // Accept joiner
-            SyncMethod.LambdaInGetter(typeof(ChoiceLetter_AcceptCreepJoiner), nameof(ChoiceLetter_AcceptCreepJoiner.Choices), 1); // Arrest joiner
+            SyncMethod.LambdaInGetter(typeof(ChoiceLetter_AcceptCreepJoiner), nameof(ChoiceLetter_AcceptCreepJoiner.Choices), 0)
+                .SetPreInvoke(TraceChoiceAction("accept-creep-joiner")); // Accept joiner
+            SyncMethod.LambdaInGetter(typeof(ChoiceLetter_AcceptCreepJoiner), nameof(ChoiceLetter_AcceptCreepJoiner.Choices), 1)
+                .SetPreInvoke(TraceChoiceAction("arrest-creep-joiner")); // Arrest joiner
+            var rejectCreepJoiner = SyncMethod.LambdaInGetter(typeof(ChoiceLetter_AcceptCreepJoiner), nameof(ChoiceLetter_AcceptCreepJoiner.Choices), 2);
+            rejectCreepJoiner.SetPreInvoke(TraceChoiceAction("reject-creep-joiner"));
             CloseDialogsForExpiredLetters.RegisterDefaultLetterChoice(
-                SyncMethod.LambdaInGetter(typeof(ChoiceLetter_AcceptCreepJoiner), nameof(ChoiceLetter_AcceptCreepJoiner.Choices), 2)
-                    .method); // Reject joiner
+                rejectCreepJoiner.method); // Reject joiner
+        }
+
+        private static System.Action<object, object[]> TraceChoiceAction(string action)
+        {
+            return (target, args) => MultifactionRouting.TraceDecisionSync(target, args, action);
         }
 
         private static readonly SyncType TraitType = new(typeof(Trait)) { expose = true };
