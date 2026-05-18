@@ -133,6 +133,8 @@ public partial class BootstrapConfiguratorWindow
         autoAdvanceArmed = true;
         AwaitingBootstrapMapInit = true;
         saveUploadStatus = "Generating map...";
+        UpdateBootstrapInputMode();
+        MoveStatusWindowAwayFromWorldCenter();
         Find.WindowStack.TryRemove(this);
 
         var scenarioPage = new Page_SelectScenario();
@@ -177,9 +179,13 @@ public partial class BootstrapConfiguratorWindow
         awaitingControllablePawns = true;
         bootstrapSaveQueued = false;
         saveUploadStatus = "Map initialized. Waiting for controllable colonists to spawn...";
+        UpdateBootstrapInputMode();
 
         if (Find.WindowStack.WindowOfType<BootstrapConfiguratorWindow>() == null)
+        {
             Find.WindowStack.Add(this);
+            MoveStatusWindowAwayFromWorldCenter();
+        }
     }
 
     private void TickPostMapEnterSaveDelayAndMaybeSave()
@@ -200,6 +206,7 @@ public partial class BootstrapConfiguratorWindow
         postMapEnterSaveDelayRemaining = 0f;
         bootstrapSaveQueued = true;
         saveUploadStatus = "Map initialized. Starting hosted MP session...";
+        UpdateBootstrapInputMode();
 
         LongEventHandler.QueueLongEvent(StartHostedBootstrapSaveCreation, "Starting host", false, null);
     }

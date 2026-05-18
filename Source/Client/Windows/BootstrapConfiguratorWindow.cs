@@ -55,6 +55,7 @@ public partial class BootstrapConfiguratorWindow : Window, IConnectionStatusList
         doCloseX = true;
         closeOnClickedOutside = false;
         absorbInputAroundWindow = true;
+        draggable = true;
 
         Instance = this;
 
@@ -81,6 +82,7 @@ public partial class BootstrapConfiguratorWindow : Window, IConnectionStatusList
             ResetTransientUiState();
 
         ApplyBootstrapState(bootstrapState, preserveTransientState: false);
+        UpdateBootstrapInputMode();
 
         if (pendingUploadState != null && File.Exists(pendingUploadState.SavePath))
         {
@@ -92,7 +94,15 @@ public partial class BootstrapConfiguratorWindow : Window, IConnectionStatusList
             statusText = pendingUploadState.StatusText;
             saveUploadStatus = "Save created. Reconnected to upload save.zip...";
             pendingUploadState = null;
+            UpdateBootstrapInputMode();
         }
+    }
+
+    public override void PreOpen()
+    {
+        base.PreOpen();
+        UpdateBootstrapInputMode();
+        MoveStatusWindowAwayFromWorldCenter();
     }
 
     public override void PostClose()
@@ -163,26 +173,34 @@ public partial class BootstrapConfiguratorWindow : Window, IConnectionStatusList
             step = Step.Settings;
             settingsUploaded = false;
             statusText = "Server settings.toml is missing. Configure it and upload it first.";
+            UpdateBootstrapInputMode();
             return;
         }
 
         step = Step.GenerateMap;
 
         if (preserveTransientState && (saveReady || isUploadingSave || saveGenerationStarted || autoAdvanceArmed || AwaitingBootstrapMapInit || bootstrapSaveQueued || awaitingControllablePawns))
+        {
+            UpdateBootstrapInputMode();
             return;
+        }
 
         statusText = saveUploadRequestedByServer
             ? "Server settings.toml already exists. Review the warning below, then create and upload save.zip."
             : "Waiting for the server to request save.zip generation.";
+        UpdateBootstrapInputMode();
     }
 
     public override void DoWindowContents(Rect inRect)
     {
+        UpdateBootstrapInputMode();
+
         var desiredHeight = GetDesiredWindowHeight();
         if (Event.current.type == EventType.Layout && !Mathf.Approximately(height, desiredHeight))
         {
             height = desiredHeight;
             SetInitialSizeAndPosition();
+            MoveStatusWindowAwayFromWorldCenter();
         }
 
         Text.Font = GameFont.Medium;
@@ -198,6 +216,39 @@ public partial class BootstrapConfiguratorWindow : Window, IConnectionStatusList
             DrawSettings(entry, inRect);
         else
             DrawGenerateMap(entry, inRect);
+    }
+
+    private void UpdateBootstrapInputMode()
+    {
+        var passThroughWorldInput = ShouldPassThroughWorldInput();
+        absorbInputAroundWindow = !passThroughWorldInput;
+        preventCameraMotion = !passThroughWorldInput;
+    }
+
+    private bool ShouldPassThroughWorldInput()
+    {
+        if (Current.ProgramState != ProgramState.Playing || step != Step.GenerateMap)
+            return false;
+
+        return hideWindowDuringMapGen ||
+            saveGenerationStarted ||
+            autoAdvanceArmed ||
+            AwaitingBootstrapMapInit ||
+            awaitingControllablePawns ||
+            bootstrapSaveQueued ||
+            saveReady ||
+            isUploadingSave;
+    }
+
+    private void MoveStatusWindowAwayFromWorldCenter()
+    {
+        if (!ShouldPassThroughWorldInput())
+            return;
+
+        const float margin = 18f;
+        windowRect.x = margin;
+        windowRect.y = Mathf.Max(margin, UI.screenHeight - windowRect.height - margin);
+        windowRect = windowRect.Rounded();
     }
 
     private float GetDesiredWindowHeight()
