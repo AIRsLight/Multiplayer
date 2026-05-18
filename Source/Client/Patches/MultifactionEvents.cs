@@ -35,6 +35,7 @@ static class MultifactionIncidentTargetPatch
         if (Multiplayer.Client == null || !Multiplayer.GameComp.multifaction || parms.target is not Map map)
             return true;
 
+        MultifactionRouting.TraceIncident(parms, "before");
         MultifactionLetterTargetFactionPatch.PushIncidentMap(map);
 
         if (IncidentCanRunForCurrentFaction(map))
@@ -93,9 +94,14 @@ static class MultifactionLetterTargetFactionPatch
         if (Multiplayer.Client == null || !Multiplayer.GameComp.multifaction)
             return;
 
-        var faction = FactionForLetter(let);
+        var incidentMap = CurrentIncidentMap;
+        var faction = MultifactionRouting.ResolveLetterRecipient(let, incidentMap, out var reason);
+        MultifactionRouting.TraceLetter(let, incidentMap, faction, reason);
         if (faction == null)
+        {
+            MultifactionRouting.WarnUnresolvedLetter(let);
             return;
+        }
 
         FactionContext.Push(faction);
         __state = true;
@@ -107,60 +113,5 @@ static class MultifactionLetterTargetFactionPatch
             FactionContext.Pop();
     }
 
-    private static Faction FactionForLetter(Letter letter)
-    {
-        var faction = FactionForTargets(letter?.lookTargets);
-        if (faction != null)
-            return faction;
-
-        if (incidentMaps.Count > 0 &&
-            incidentMaps.Peek()?.ParentFaction is { IsPlayer: true } incidentFaction)
-            return incidentFaction;
-
-        var contextMap = Multiplayer.MapContext;
-        if (contextMap?.ParentFaction is { IsPlayer: true } mapFaction)
-            return mapFaction;
-
-        return null;
-    }
-
-    private static Faction FactionForTargets(LookTargets targets)
-    {
-        if (targets?.targets == null)
-            return null;
-
-        foreach (var target in targets.targets)
-        {
-            var faction = FactionForTarget(target);
-            if (faction != null)
-                return faction;
-        }
-
-        return null;
-    }
-
-    private static Faction FactionForTarget(GlobalTargetInfo target)
-    {
-        if (target.Map?.ParentFaction is { IsPlayer: true } mapFaction)
-            return mapFaction;
-
-        if (target.WorldObject?.Faction is { IsPlayer: true } worldObjectFaction)
-            return worldObjectFaction;
-
-        if (target.Tile.Valid)
-        {
-            var mapParent = Find.WorldObjects.MapParentAt(target.Tile);
-            if (mapParent?.Faction is { IsPlayer: true } mapParentFaction)
-                return mapParentFaction;
-
-            var caravan = Find.WorldObjects.PlayerControlledCaravanAt(target.Tile);
-            if (caravan?.Faction is { IsPlayer: true } caravanFaction)
-                return caravanFaction;
-
-            if (TileFactionContext.GetFactionForTile(target.Tile) is { IsPlayer: true } tileFaction)
-                return tileFaction;
-        }
-
-        return null;
-    }
+    private static Map CurrentIncidentMap => incidentMaps.Count > 0 ? incidentMaps.Peek() : null;
 }

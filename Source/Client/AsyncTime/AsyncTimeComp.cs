@@ -248,6 +248,7 @@ namespace Multiplayer.Client
 
             PreContext();
             map.PushFaction(cmd.GetFaction(), force: true);
+            MultifactionRouting.TraceCommand(cmd, map, "map-begin");
 
             context.map = map;
 

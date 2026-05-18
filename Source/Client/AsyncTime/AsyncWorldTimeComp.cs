@@ -180,6 +180,7 @@ public class AsyncWorldTimeComp : IExposable, ITickable
 
         PreContext();
         FactionExtensions.PushFaction(null, cmd.GetFaction());
+        MultifactionRouting.TraceCommand(cmd, null, "world-begin");
 
         bool prevDevMode = Prefs.data.devMode;
         var prevGodMode = DebugSettings.godMode;
