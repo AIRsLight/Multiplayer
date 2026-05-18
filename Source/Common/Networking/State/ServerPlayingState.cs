@@ -91,6 +91,13 @@ namespace Multiplayer.Common
         [PacketHandler(Packets.Client_WorldDataUpload, allowFragmented: true)]
         public void HandleWorldDataUpload(ByteReader data)
         {
+            if (Server.IsStandaloneServer && !Server.worldData.CreatingJoinPoint)
+            {
+                ServerLog.Detail($"Ignoring standalone world upload from {Player.Username}: no join point is being created");
+                data.Seek(data.Length);
+                return;
+            }
+
             // On standalone, accept from any playing client; otherwise only host/arbiter
             if (!Server.IsStandaloneServer && (Server.ArbiterPlaying ? !Player.IsArbiter : !Player.IsHost))
                 return;

@@ -64,7 +64,7 @@ public class ServerTest
 
         var completed = await waitTask.WaitAsync(TimeSpan.FromSeconds(1));
 
-        Assert.That(completed, Is.SameAs(server.worldData));
+        Assert.That(completed, Is.False);
         Assert.That(server.worldData.CreatingJoinPoint, Is.False);
         Assert.That(server.worldData.WaitJoinPoint().IsCompleted, Is.True);
     }
@@ -93,6 +93,62 @@ public class ServerTest
                 Assert.Fail("Timeout");
 
             Thread.Sleep(50);
+        }
+    }
+
+    [Test]
+    public async Task StandaloneLoadingFallsBackToExistingWorldDataWhenJoinPointTimesOut()
+    {
+        var previousTimeout = WorldData.StandaloneJoinPointFallbackTimeout;
+        WorldData.StandaloneJoinPointFallbackTimeout = TimeSpan.FromMilliseconds(10);
+
+        try
+        {
+            var server = MultiplayerServer.instance = new MultiplayerServer(new ServerSettings
+            {
+                gameName = "Test",
+                direct = false,
+                lan = false
+            })
+            {
+                IsStandaloneServer = true,
+            };
+
+            server.worldData.savedGame = [1, 2, 3];
+            server.worldData.sessionData = [];
+
+            var hostConn = new RecordingConnection("host");
+            var host = new ServerPlayer(0, hostConn);
+            hostConn.serverPlayer = host;
+            server.hostUsername = "host";
+            server.playerManager.Players.Add(host);
+            hostConn.ChangeState(ConnectionStateEnum.ServerPlaying);
+
+            Assert.That(server.worldData.TryStartJoinPointCreation(true), Is.True);
+
+            var joiningConn = new RecordingConnection("joining");
+            var joining = new ServerPlayer(1, joiningConn);
+            joiningConn.serverPlayer = joining;
+            server.playerManager.Players.Add(joining);
+
+            joiningConn.ChangeState(ConnectionStateEnum.ServerLoading);
+
+            var timeoutWatch = Stopwatch.StartNew();
+            while (!joiningConn.SentPackets.Contains(Packets.Server_WorldDataStart))
+            {
+                if (timeoutWatch.ElapsedMilliseconds > 1000)
+                    Assert.Fail("Timed out waiting for standalone fallback world data");
+
+                await Task.Delay(10);
+            }
+
+            Assert.That(joiningConn.SentPackets, Does.Contain(Packets.Server_WorldData));
+            Assert.That(joiningConn.State, Is.EqualTo(ConnectionStateEnum.ServerPlaying));
+        }
+        finally
+        {
+            WorldData.StandaloneJoinPointFallbackTimeout = previousTimeout;
+            MultiplayerServer.instance = null;
         }
     }
 

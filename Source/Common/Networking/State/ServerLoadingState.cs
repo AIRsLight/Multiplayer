@@ -6,6 +6,8 @@ namespace Multiplayer.Common;
 
 public class ServerLoadingState : AsyncConnectionState
 {
+    private bool usedStandaloneFallback;
+
     public ServerLoadingState(ConnectionBase connection) : base(connection)
     {
     }
@@ -49,22 +51,38 @@ public class ServerLoadingState : AsyncConnectionState
     private async Task<bool> WaitForJoinPoint()
     {
         var joinPointTask = Server.worldData.WaitJoinPoint();
-        var completed = await Task.WhenAny(joinPointTask, Task.Delay(WorldData.JoinPointTimeout));
+        var waitTimeout = Server.IsStandaloneServer
+            ? WorldData.StandaloneJoinPointFallbackTimeout
+            : WorldData.JoinPointTimeout;
+        var completed = await Task.WhenAny(joinPointTask, Task.Delay(waitTimeout));
 
         if (completed != joinPointTask)
         {
-            ServerLog.Log($"{connection} timed out waiting for join point data");
             Server.worldData.AbortJoinPointCreation($"loading player {connection} timed out waiting for data");
-            Player.Disconnect(MpDisconnectReason.ClientLeft);
-            return false;
+            return TryUseStandaloneFallback("timed out waiting for join point data");
         }
 
         if (await joinPointTask)
             return true;
 
+        if (TryUseStandaloneFallback("join point creation was aborted"))
+            return true;
+
         ServerLog.Log($"{connection} stopped loading because join point creation was aborted");
         Player.Disconnect(MpDisconnectReason.ClientLeft);
         return false;
+    }
+
+    private bool TryUseStandaloneFallback(string reason)
+    {
+        if (!Server.IsStandaloneServer ||
+            Server.worldData.savedGame == null ||
+            Server.worldData.sessionData == null)
+            return false;
+
+        usedStandaloneFallback = true;
+        ServerLog.Log($"{connection} loading from existing standalone world data after {reason}");
+        return true;
     }
 
     public void SendWorldData()
@@ -77,6 +95,7 @@ public class ServerLoadingState : AsyncConnectionState
         writer.WriteInt32(Server.gameTimer);
         writer.WriteInt32(Server.commands.SentCmds);
         writer.WriteBool(Server.freezeManager.Frozen);
+        writer.WriteBool(usedStandaloneFallback);
         writer.WritePrefixedBytes(Server.worldData.savedGame);
         writer.WritePrefixedBytes(Server.worldData.sessionData);
 

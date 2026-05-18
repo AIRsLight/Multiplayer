@@ -17,9 +17,6 @@ public enum LoadingState
 [PacketHandlerClass(inheritHandlers: true)]
 public class ClientLoadingState(ConnectionBase connection) : ClientBaseState(connection)
 {
-    private const int WorldRequestRetryDelayMs = 5000;
-    private const int MaxWorldRequestRetries = 3;
-
     public LoadingState subState = LoadingState.Waiting;
     public uint WorldExpectedSize { get; private set; }
     public uint WorldReceivedSize { get; private set; }
@@ -44,12 +41,6 @@ public class ClientLoadingState(ConnectionBase connection) : ClientBaseState(con
 
     private List<(long, uint)> downloadCheckpoints = new(capacity: 64);
     private Stopwatch downloadTimeStopwatch = new();
-    private int worldRequestRetries;
-
-    public override void StartState()
-    {
-        RetryWorldRequestIfStillWaiting();
-    }
 
     [PacketHandler(Packets.Server_WorldDataStart)]
     public void HandleWorldDataStart(ByteReader data)
@@ -58,31 +49,6 @@ public class ClientLoadingState(ConnectionBase connection) : ClientBaseState(con
         subState = LoadingState.Downloading;
         connection.Lenient = false; // Lenient is set while rejoining
         downloadTimeStopwatch.Start();
-    }
-
-    private void RetryWorldRequestIfStillWaiting()
-    {
-        OnMainThread.Schedule(() =>
-        {
-            if (Multiplayer.Client != connection ||
-                connection.State != ConnectionStateEnum.ClientLoading ||
-                connection.StateObj != this ||
-                subState != LoadingState.Waiting)
-            {
-                return;
-            }
-
-            if (worldRequestRetries >= MaxWorldRequestRetries)
-            {
-                Log.Warning($"Multiplayer: still waiting for world data after {MaxWorldRequestRetries} Client_WorldRequest retries");
-                return;
-            }
-
-            worldRequestRetries++;
-            Log.Warning($"Multiplayer: still waiting for world data, retrying Client_WorldRequest ({worldRequestRetries}/{MaxWorldRequestRetries})");
-            connection.Send(Packets.Client_WorldRequest);
-            RetryWorldRequestIfStillWaiting();
-        }, WorldRequestRetryDelayMs / 1000f);
     }
 
     [FragmentedPacketHandler(Packets.Server_WorldData)]
@@ -108,6 +74,7 @@ public class ClientLoadingState(ConnectionBase connection) : ClientBaseState(con
         int tickUntil = data.ReadInt32();
         int remoteSentCmds = data.ReadInt32();
         bool serverFrozen = data.ReadBool();
+        bool usedStandaloneFallback = data.ReadBool();
 
         byte[] worldData = GZipStream.UncompressBuffer(data.ReadPrefixedBytes());
         byte[] sessionData = GZipStream.UncompressBuffer(data.ReadPrefixedBytes());
@@ -180,5 +147,13 @@ public class ClientLoadingState(ConnectionBase connection) : ClientBaseState(con
         var loadingMs = watch.ElapsedMilliseconds;
         Log.Message($"Loaded game in {loadingMs}ms");
         connection.ChangeState(ConnectionStateEnum.ClientPlaying);
+
+        if (usedStandaloneFallback)
+        {
+            const string fallbackMessage =
+                "Multiplayer: fresh join data was not received in time; joined using the server's cached standalone snapshot.";
+            Log.Warning(fallbackMessage);
+            Messages.Message(fallbackMessage, RimWorld.MessageTypeDefOf.SilentInput, false);
+        }
     }
 }

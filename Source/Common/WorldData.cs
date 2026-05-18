@@ -23,7 +23,8 @@ public class WorldData
     public StandaloneWorldSnapshotState standaloneWorldSnapshot = new();
     public Dictionary<int, StandaloneMapSnapshotState> standaloneMapSnapshots = new();
 
-    public static readonly TimeSpan JoinPointTimeout = TimeSpan.FromSeconds(120);
+    public static TimeSpan JoinPointTimeout { get; set; } = TimeSpan.FromSeconds(120);
+    public static TimeSpan StandaloneJoinPointFallbackTimeout { get; set; } = TimeSpan.FromSeconds(30);
 
     private TaskCompletionSource<bool>? dataSource;
     private int joinPointStartedAtNetTick;
