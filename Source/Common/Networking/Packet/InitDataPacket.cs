@@ -43,7 +43,7 @@ public record struct ClientInitDataPacket : IPacket
         buf.BindEnum(ref staticCtorRoundMode);
         buf.Bind(ref defInfos, BinderOf.Identity<KeyedDefInfo>());
         buf.Bind(ref includeConfigs);
-        buf.BindRemaining(ref rawMods);
+        buf.BindRemaining(ref rawMods, maxLength: MaxRawDataLength);
     }
 
     // Based on ContentSource but a byte, so smaller on the network and also doesn't use Verse
